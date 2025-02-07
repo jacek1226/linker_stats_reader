@@ -17,6 +17,7 @@ class CurrentMapPart(Enum):
     OUTPUT = "OUTPUT"
 
 
+APP_STARTING_PATH_TUPLE = ("../", "CMakeFiles/")
 mapPartList = [mapPart.value for mapPart in CurrentMapPart][1:]  # without starting value
 disable_mapping_sections_list = ["data1", "exception_ranges"]
 MAP_FILENAME = 'tmp.map'
@@ -34,6 +35,9 @@ def save_values(_section_name: str, _section_fullname: str, _section_starting_by
             "section_length": _section_length,
             "section_path": _section_path
         })
+
+
+output_dict = {}
 
 
 if __name__ == '__main__':
@@ -56,7 +60,7 @@ if __name__ == '__main__':
                         # print(CurrentMapPart._value2member_map_)
                         # print(line in CurrentMapPart._value2member_map_)
                         currentPart = CurrentMapPart(line)
-                        print(f"CurrentPart: {currentPart.name}, provious line counter { lineCounter}")
+                        # print(f"CurrentPart: {currentPart.name}, provious line counter { lineCounter}")
                         lineCounter = 0
                         continue
 
@@ -105,16 +109,16 @@ if __name__ == '__main__':
                                                 parameters[0].startswith("0x") \
                         :
                         # print(line)
-                        print(section_name)
+                        # print(section_name)
                         got_section_size = True
                         section_starting_byte = int(parameters[0], 16)
                         if parameters[1].startswith("0x"):
                             section_length        = int(parameters[1], 16)
-                            print(f"0x{section_starting_byte:X}")
-                            print(f"0x{section_length:X}")
+                            # print(f"0x{section_starting_byte:X}")
+                            # print(f"0x{section_length:X}")
                             if len(parameters) >= 3:
                                 section_path = parameters[2]
-                                print(section_path)
+                                # print(section_path)
                         else:
                             raise ValueError(f"Error while parsing section {section_name}! Unknown argument!")
 
@@ -124,4 +128,38 @@ if __name__ == '__main__':
                         section_starting_byte = 0
                         section_length = 0
                         section_path = "None"
-        print(sections_dict)
+        # print(sections_dict)
+        for section_name, properties_list in sections_dict.items():
+
+            section_dict = {}
+            for properties in properties_list:
+                length = properties["section_length"]
+                path: str = properties["section_path"]
+                if path.startswith(APP_STARTING_PATH_TUPLE):
+                    if ".a" in path:
+                        path_values = path.split(".a")  # get the path to the library
+                        # print(path_values)
+                        path = path_values[0]
+                        cpp_filename = path_values[1]
+                        # print(cpp_filename)
+                        cpp_filename = cpp_filename.split(".o")[0][1:]
+                    else:
+                        path = path.split(".o")[0]
+                        cpp_filename = path.split("/")[-1]
+                        path = path.split(".cpp")[0]
+
+                    if path.startswith("../../"):
+                        path = path.replace("../../", "")
+
+                    if path not in section_dict.keys():
+                        section_dict[path] = 0
+                    section_dict[path] += length
+            output_dict[section_name] = section_dict
+
+        for section_name, section_dict in output_dict.items():
+            if section_dict:
+                print("-------------------------------------")
+                print(f"{section_name}")
+                print("-------------------------------------")
+                for key, value in section_dict.items():
+                    print(f"{value}\t{key}")
